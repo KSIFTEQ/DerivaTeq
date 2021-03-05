@@ -1,13 +1,19 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Sun Feb 28 11:51:51 2021
 
-@author: yuhojin
+A library for European option pricing with Skewness/Kurtosis adjustment.
+3 kinds of methodologies which is expanded based on BSM are explained below. 
+
 """
+
+# ----------------------------------------------------------------
+# IMPORTS
 
 from scipy.stats import norm
 import numpy as np
+
+
+# ----------------------------------------------------------------
+# FUNCTIONS 
 
 class SkewKurtmodels:
     
@@ -26,15 +32,25 @@ class SkewKurtmodels:
         self.d2 = self.d1 - ( self.vol * np.sqrt(self.tau) ) 
         
         self.call = self.s * np.exp(-self.dividend * self.tau) * norm.cdf(self.d1) - self.strike * np.exp(-self.interest * self.tau) * norm.cdf(self.d2)
+        self.put = self.call - self.s * np.exp(-self.dividend * self.tau) + self.strike * np.exp(-self.interest * self.tau)
         
-    #This model adjusts for skewness and kurtosis in the asset price directly not in the return distribution
     
-    def BSM_call(self):
+    def BSM(self, callputtype):
         
-        return self.call
+        if callputtype == "call":
+            
+            value = self.call 
+        
+        ## put-call parity
+        elif callputtype == "put":
+            
+            value = self.call - ( self.s * np.exp(-self.dividend * self.tau ) )+ self.strike * np.exp(-self.interest * self.tau)
+        
+        return value
 
-    
-    def JarrowRudd_call(self, dataskew, datakurt, callputtype):
+    # The model below adjusts for skewness and kurtosis in the ASSET PRICE DIRECTLY not in the return distribution
+
+    def JarrowRudd(self, dataskew, datakurt, callputtype):
         
         y = np.sqrt(np.exp(self.vol**2 * self.tau) - 1)
         
@@ -70,9 +86,9 @@ class SkewKurtmodels:
         return value
     
 
-    # This model adjusts for skewness and kurtosis in the return distribution not asset price itself.
+    # The model below adjusts for skewness and kurtosis in the RETURN DISTRIBUTION not asset price itself.
     
-    def CorradoSu_call(self, dataskew, datakurt, callputtype): # dataskew, datakurt of which return distribution
+    def CorradoSu(self, dataskew, datakurt, callputtype): # dataskew, datakurt of which return distribution
         
         mu3 = dataskew
         
@@ -92,14 +108,13 @@ class SkewKurtmodels:
             
             value = self.call + (mu3 * q3) + (mu4 - 3)*q4 - self.s * np.exp(-self.dividend * self.tau) + self.strike * np.exp(-self.interest * self.tau)
 
-        print(mu3, mu4, q3, q4)
-
         return value
     
-    # This model adjusts for skewness and kurtosis in the return distribution not asset price itself.
-    # original model does not satisfy a martingale restriction -> modified
+    # The model below adjusts for skewness and kurtosis in the RETURN DISTRIBUTION not asset price itself.
+    # original model(CorradoSu_Call) does not satisfy a martingale restriction.
+    # Modified CorradoSu does satisfy a martingale restriction.
     
-    def ModifiedCorradoSu_Call(self, dataskew, datakurt, callputtype): # dataskew, datakurt of which return distribution
+    def ModifiedCorradoSu(self, dataskew, datakurt, callputtype): # dataskew, datakurt of which return distribution
     
         mu3 = dataskew
         mu4 = datakurt
@@ -139,10 +154,10 @@ if __name__=="__main__":
     datakurt = 4
     ex = SkewKurtmodels(s, strike, interest, vol, tau, dividend)
         
-    BSMCall = ex.BSM_call()
-    JarrowRuddCall = ex.JarrowRudd_Call(dataskew, datakurt, callputtype)
-    CorradoSuCall = ex.CorradoSu_Call(dataskew, datakurt, callputtype)
-    ModifiedCorradoSucall = ex.ModifiedCorradoSu_Call(dataskew, datakurt, callputtype)
+    BSMCall = ex.BSM(callputtype)
+    JarrowRuddCall = ex.JarrowRudd(dataskew, datakurt, callputtype)
+    CorradoSuCall = ex.CorradoSu(dataskew, datakurt, callputtype)
+    ModifiedCorradoSucall = ex.ModifiedCorradoSu(dataskew, datakurt, callputtype)
 
     
         
