@@ -6,9 +6,20 @@ import re
 import yaml
     
 def USD_LIBOR():
-    dict_rates = defaultdict(dict)
+    """
+    Get USD LIBOR Quotes from link below
 
-    libor_link = 'https://www.global-rates.com/en/interest-rates/libor/american-dollar/american-dollar.aspx'
+    Args:
+        None
+    Returns:
+        Dictionary:
+            key: Term (e.g. 1 week, 3 months, etc)
+            value: Corresponding USD LIBOR rate 
+    """
+
+    _dict = defaultdict(dict)
+
+    link  = 'https://www.global-rates.com/en/interest-rates/libor/american-dollar/american-dollar.aspx'
     req   = Request(libor_link, headers={'User-Agent': 'Mozilla/5.0'})
     html  = urlopen(req)
     bsObj = BeautifulSoup(html, 'html.parser')
@@ -29,8 +40,9 @@ def USD_LIBOR():
         ).date()
 
         # Insert date into dict as key; insert keys only (without values)
-        dict_rates[date]
+        _dict[date]
 
+    # Get rates and update _dict
     for i in [1, 2]:
         table_data = str(table.findAll('tr', {'class' : 'tabledata%s'%(i)})).split('</tr>')
         for row_term in table_data:
@@ -46,25 +58,36 @@ def USD_LIBOR():
                     except ValueError:
                         continue
 
-                    list_keys = list(dict_rates)
-                    dict_rates[list_keys[i-1]].update({term : rate})
+                    list_keys = list(_dict)
+                    _dict[list_keys[i-1]].update({term : rate})
             
-    return dict_rates
+    return _dict
 
 
 def Eurodollar_Futures():
+    """
+    Get Eurodollar Futures Quote from link below
+
+    Args:
+        None
+    Returns:
+        A dictionary:
+            key: Term (e.g. DEC 2020)
+            value: Corresponding 'last' quote
+    """
+    
     dict_quotes = OrderedDict()
 
-    libor_link = 'https://www.cmegroup.com/CmeWS/mvc/Quotes/Future/1/G?quoteCodes=null'
+    link = 'https://www.cmegroup.com/CmeWS/mvc/Quotes/Future/1/G?quoteCodes=null'
     req   = Request(libor_link, headers={'User-Agent': 'Mozilla/5.0'})
     html  = urlopen(req)
     bsObj = str(BeautifulSoup(html, 'html.parser'))
 
-    get_quotes = yaml.load(bsObj)['quotes']
+    get_quotes = yaml.safe_load(bsObj)['quotes']
     for dict_month in get_quotes:
         month, quote = dict_month['expirationMonth'], dict_month['last']
         if quote == '-':
             continue
-        dict_quotes[month] = quote
+        dict_quotes[month] = float(quote)
     
     return dict_quotes
