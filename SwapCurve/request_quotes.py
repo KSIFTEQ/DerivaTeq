@@ -4,7 +4,7 @@ from urllib.request import urlopen, Request
 from collections    import defaultdict, OrderedDict
 import re
 import yaml
-    
+
 def USD_LIBOR():
     """
     Get USD LIBOR Quotes from link below
@@ -20,7 +20,7 @@ def USD_LIBOR():
     _dict = defaultdict(dict)
 
     link  = 'https://www.global-rates.com/en/interest-rates/libor/american-dollar/american-dollar.aspx'
-    req   = Request(libor_link, headers={'User-Agent': 'Mozilla/5.0'})
+    req   = Request(link, headers={'User-Agent': 'Mozilla/5.0'})
     html  = urlopen(req)
     bsObj = BeautifulSoup(html, 'html.parser')
     
@@ -79,7 +79,7 @@ def Eurodollar_Futures():
     dict_quotes = OrderedDict()
 
     link = 'https://www.cmegroup.com/CmeWS/mvc/Quotes/Future/1/G?quoteCodes=null'
-    req   = Request(libor_link, headers={'User-Agent': 'Mozilla/5.0'})
+    req   = Request(link, headers={'User-Agent': 'Mozilla/5.0'})
     html  = urlopen(req)
     bsObj = str(BeautifulSoup(html, 'html.parser'))
 
@@ -91,3 +91,45 @@ def Eurodollar_Futures():
         dict_quotes[month] = float(quote)
     
     return dict_quotes
+
+
+def USD_Swap_Rates():
+    """
+    Get the Current USD Swap Rates
+
+    Args:
+        None
+    Returns:
+        OrderedDict:
+            key: Term (e.g. 1-Year)
+            value: Corresponding swap rate
+    """
+    dict_quotes = defaultdict(float)
+
+    link = 'https://www.thefinancials.com/Widget.aspx?pid=FREE&wid=0050600496&mode=js&width=100%'
+    req   = Request(link, headers={'User-Agent': 'Mozilla/5.0'})
+    html  = urlopen(req)
+    bsObj = BeautifulSoup(html, 'html.parser')
+
+    table = bsObj.find('div', {'id' : 'TableRows', 'style' : ''})
+    
+    for item in str(table).split('</div>')[3:]:
+        if '</a>' not in item:
+            continue
+        
+        str_left, str_right = 'false;">', '</a>'
+        i_left, i_right = len(str_left), len(str_right)
+        
+        data = re.search(r'%s(.*?)%s' %(str_left, str_right), item)[0][i_left:-i_right]
+        
+        if 'Year' in data:
+            dict_quotes[data]
+
+        elif '%' in data:
+            dict_key = list(dict_quotes)[-1]
+            dict_quotes[dict_key] = float(data[:-1])
+        
+        elif ('+' in data) or ('-' in data):
+            continue
+    
+    return OrderedDict(dict_quotes.items())
