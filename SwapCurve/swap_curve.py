@@ -1,15 +1,16 @@
 # import matplotlib.pyplot as plt
-from datetime import datetime, date, timedelta
-from math     import log, exp
+from math                   import log, exp
+from datetime               import datetime, date, timedelta
+from collections            import OrderedDict
+from scipy.interpolate      import CubicSpline
 from dateutil.relativedelta import relativedelta
-from collections import OrderedDict
-
 import inspect
 import calendar
+import matplotlib.pyplot as plt
 import pprint
 pp = pprint.PrettyPrinter(indent=2)
 
-from request_quotes import USD_LIBOR, Eurodollar_Futures
+import request_quotes
 
 class SwapCurve:
 
@@ -177,6 +178,24 @@ class SwapCurve:
 # pp.pprint(hw1.middle_curve())
 
 
+
+
+a = request_quotes.USD_Swap_Rates()
+swap_terms = list(a.keys())
+swap_rates = list(a.values())
+
+swap_terms2 = [int(year.replace('-Year', '')) * 365 for year in swap_terms]
+
+cs_swap = CubicSpline(swap_terms2, swap_rates)
+plt.plot(swap_terms, swap_rates)
+# plt.plot(swap_terms, cs_swap(swap_terms2))
+plt.show()
+input()
+
+
+
+
+
 today = datetime(2021,3,10).date()
 
 Mar03_2021 = SwapCurve(
@@ -186,10 +205,5 @@ Mar03_2021 = SwapCurve(
 )
 
 pp.pprint(Mar03_2021.short_end_curve())
+print()
 pp.pprint(Mar03_2021.middle_curve())
-
-
-
-
-
-
