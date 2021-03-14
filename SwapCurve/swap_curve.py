@@ -27,7 +27,7 @@ class SwapCurve:
         self.present_date = self.__datetime_date(present_date)
         self.LIBOR = LIBOR
         self.ED_futures = ED
-        self.IRS  = IRS
+        self.IRS = IRS
         self.VOL = 0.005
 
     def __datetime_date(self, str_date):
