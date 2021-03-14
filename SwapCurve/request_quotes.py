@@ -7,13 +7,13 @@ import yaml
 
 def USD_LIBOR():
     """
-    Get USD LIBOR Quotes from link below
+    Get the most recent USD LIBOR Quotes from the link below
 
     Args:
         None
-    Returns:
+    Return:
         Dictionary:
-            key: Term (e.g. 1 week, 3 months, etc)
+            key: term (e.g. 1 week, 1 month, etc)
             value: Corresponding USD LIBOR rate 
     """
 
@@ -61,17 +61,17 @@ def USD_LIBOR():
                     list_keys = list(_dict)
                     _dict[list_keys[i-1]].update({term : rate})
             
-    return _dict
+    return _dict[date]
 
 
 def Eurodollar_Futures():
     """
-    Get Eurodollar Futures Quote from link below
+    Get the most recent Eurodollar Futures quotes from the link below
 
     Args:
         None
     Returns:
-        A dictionary:
+        OrderedDict:
             key: Term (e.g. DEC 2020)
             value: Corresponding 'last' quote
     """
@@ -95,14 +95,14 @@ def Eurodollar_Futures():
 
 def USD_Swap_Rates():
     """
-    Get the Current USD Swap Rates
+    Get the most recent USD Swap rates
 
     Args:
         None
     Returns:
         OrderedDict:
-            key: Term (e.g. 1-Year)
-            value: Corresponding swap rate
+            key: term (e.g. 1-Year)
+            value: corresponding swap rate
     """
     dict_quotes = defaultdict(float)
 
@@ -113,7 +113,8 @@ def USD_Swap_Rates():
 
     table = bsObj.find('div', {'id' : 'TableRows', 'style' : ''})
     
-    for item in str(table).split('</div>')[3:]:
+    for item in str(table).split('</div>'):
+        
         if '</a>' not in item:
             continue
         
