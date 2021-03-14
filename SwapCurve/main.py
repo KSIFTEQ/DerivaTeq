@@ -1,4 +1,4 @@
-import swap_curve 
+from swap_curve import SwapCurve
 from request_quotes import USD_LIBOR, Eurodollar_Futures, USD_Swap_Rates
 
 import pprint
