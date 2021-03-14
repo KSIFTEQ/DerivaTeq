@@ -189,13 +189,14 @@ class SwapCurve:
         )
 
         list_terms =  np.linspace(1,31,60,endpoint=False)[:-1] # 1, 1.5, 2, 2.5, ..., 30
-        datetime_term_0 = self.present_date + relativedelta(years=list_terms[0])
-        for i, term in enumerate(list_terms):
+        datetime_term = self.present_date + relativedelta(months=6)
+        for term in list_terms:
+            datetime_term += relativedelta(months=6)
             
-            datetime_term = datetime_term_0 + relativedelta(months=int(i*6))
-
-            term_to_days = (datetime_term - datetime_term_0).days
+            term_to_days = (datetime_term - self.present_date).days
             swap_rate = IRS_rates_interpolated(term_to_days) / 100
+            # print(term_to_days, swap_rate);continue
+
             discount_factor = (1 - 0.5 * swap_rate * sum_discount_factor)/ (1 + 0.5 * swap_rate)
             zero_rate = 100 * -log(discount_factor) / term
             sum_discount_factor += discount_factor
@@ -204,7 +205,7 @@ class SwapCurve:
 
         return _dict
 
-    def swap_curve(self):
+    def curve(self):
         """
         Generate the entire swap curve using three curves above
 
@@ -228,7 +229,7 @@ class SwapCurve:
 
         return {**short_end_curve, **middle_curve, **self.long_end_curve()}
 
-    def plot_swap_curve(self):
+    def plot_curve(self):
         """
         Plot the entire curve
 
@@ -246,5 +247,5 @@ class SwapCurve:
 
         datetime_x = [self.present_date + timedelta(i) for i in x]
         plt.plot(datetime_x, y(x))
-        plt.title(f'{self.present_date} Swap Curved')
+        plt.title(f'{self.present_date} Swap Curve')
         plt.show()
