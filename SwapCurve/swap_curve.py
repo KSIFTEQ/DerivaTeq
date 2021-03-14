@@ -1,4 +1,3 @@
-# import matplotlib.pyplot as plt
 from math                   import log, exp
 from datetime               import datetime, date, timedelta
 from collections            import OrderedDict
@@ -6,30 +5,40 @@ from scipy.interpolate      import CubicSpline
 from dateutil.relativedelta import relativedelta
 import inspect
 import calendar
+import numpy as np
 import matplotlib.pyplot as plt
-import pprint
-pp = pprint.PrettyPrinter(indent=2)
 
-import request_quotes
+from request_quotes import USD_LIBOR, Eurodollar_Futures, USD_Swap_Rates
 
 class SwapCurve:
+    """ 
+    This class is to build a swap curve from the latest quotes for LIBOR, Eurodollar FUtures, and IRS by default, 
+    or given rates and date by user.        
+    """
 
-    def __init__(self, present_date, LIBOR, ED):
-        self.present_date    = self.datetime_date(present_date)
-        self.short_end_rates = LIBOR
-        self.middle_rates    = ED
+    def __init__(
+        self, 
+        present_date = datetime.strftime(datetime.today(), '%Y-%m-%d'), 
+        LIBOR = USD_LIBOR(),
+        ED = Eurodollar_Futures(), 
+        IRS = USD_Swap_Rates()
+    ):
         
-        self.VOL             = 0.005
+        self.present_date = self.__datetime_date(present_date)
+        self.LIBOR = LIBOR
+        self.ED_futures = ED
+        self.IRS  = IRS
+        self.VOL = 0.005
 
-    def datetime_date(self, str_date):
+    def __datetime_date(self, str_date):
         ''' Casting string-formatted date to datetime.date '''
         return datetime.strptime(str_date, '%Y-%m-%d').date()
 
-    def delta(self, date):
+    def __delta(self, date):
         ''' Daycount from the present date to the input date divided by 360 '''
         return (date - self.present_date).days / 360
 
-    def term_to_days(self, term):
+    def __term_to_days(self, term):
         """
         Transform a string-formatted term to days
 
@@ -46,15 +55,14 @@ class SwapCurve:
                 return int(term[0]) * 365
             return int(term[0]) * 30
 
-    def ED_settlement_date(self, term):
+    def __ED_settlement_date(self, term):
         """
         Return the third Wednesday of the month of 'term'
         which is a settlement date of Eurodollar Futures
 
         Args:
             term : string or datetime.date
-                e.g. DEC 2020, datetime.date(2020, 03, 02)
-                
+                e.g. DEC 2020, datetime.date(2020, 03, 02)          
         Returns:
             int : datetime.date
         """
@@ -73,7 +81,7 @@ class SwapCurve:
         ][2]
         
 
-    def initial_zero_rate(self, date):
+    def __initial_zero_rate(self, date):
         """
         Calculate the zero rate for the first term of middle curve or long end curve
         in order for the initial discount factor calculation
@@ -84,7 +92,7 @@ class SwapCurve:
             float : zero rate
         """
         calling_from = inspect.stack()[1].function
-        shorter_rate = self.short_end_curve() if calling_from == 'middle_curve' else self.long_end_curve()
+        shorter_rate = self.short_end_curve() if calling_from == 'middle_curve' else self.middle_curve()
 
         for t1, t2 in zip(list(shorter_rate)[:-1], list(shorter_rate)[1:]):
             if t1 <= date <= t2:
@@ -104,11 +112,11 @@ class SwapCurve:
                 value : zero rate
         """
         _dict = dict()
-        for term, rate in self.short_end_rates.items():
+        for term, rate in self.LIBOR.items():
             if term == 'overnight':
                 continue
-
-            days_delta       = self.term_to_days(term)
+            
+            days_delta       = self.__term_to_days(term)
             discount_factor  = 1 / (1 + (days_delta/360) * (rate/100))
             
             term = (self.present_date + timedelta(days_delta))
@@ -118,7 +126,7 @@ class SwapCurve:
 
     def middle_curve(self):
         """
-        Generate zero rates from the quotes for Eurodollar Futures
+        Generate zero rates from the Eurodollar Futures quotes
 
         Args:
             None
@@ -128,82 +136,115 @@ class SwapCurve:
                 value : zero rate
         """
         _dict = OrderedDict()
-        rates_ED = self.middle_rates
-        
-        zero_date = self.ED_settlement_date(list(rates_ED)[0])
-        zero_rate = self.initial_zero_rate(zero_date)
-        _dict[zero_date] = zero_rate
-        
-        discount_factor = exp(-self.delta(zero_date) * zero_rate/100)
+        rates_ED = self.ED_futures
+
+        # short-end curve dict의 term들이 이번달 Eurodollar Futures 결제일보다 모두 늦는 경우
+        # 초기 zero rate 값을 short-end curve에서 보간할 수 없음
+        # 따라서 zero date를 다음달 결제일로 이월하여 계산
+        i = 0; zero_rate = None
+        while isinstance(zero_rate, type(None)):
+            zero_date = self.__ED_settlement_date(list(rates_ED)[i])
+            zero_rate = self.__initial_zero_rate(zero_date)
+            i += 1
+        discount_factor = exp(-self.__delta(zero_date) * zero_rate/100)
 
         ED_month = lambda t : datetime.strftime(t, '%b %Y').upper()
-        while ED_month(zero_date) in list(self.middle_rates):
+        while ED_month(zero_date) in list(self.ED_futures):
 
             settlement_date  = zero_date
-            zero_date = self.ED_settlement_date(settlement_date+relativedelta(months=3))
+            zero_date = self.__ED_settlement_date(settlement_date+relativedelta(months=3))
 
-            futures_rate = 100 - self.middle_rates[ED_month(settlement_date)]
-            convexity    = 0.5 * (self.VOL**2) * self.delta(settlement_date) * self.delta(zero_date)
+            futures_rate = 100 - self.ED_futures[ED_month(settlement_date)]
+            convexity    = 0.5 * (self.VOL**2) * self.__delta(settlement_date) * self.__delta(zero_date)
             forward_rate = futures_rate - (convexity*100)
 
             discount_factor /= (1 + ((zero_date - settlement_date).days/360) * (forward_rate/100))
-            zero_rate = 100 * (-log(discount_factor)) / (self.delta(zero_date))
+            zero_rate = 100 * (-log(discount_factor)) / (self.__delta(zero_date))
             _dict[zero_date] =zero_rate
 
         return _dict
 
 
     def long_end_curve(self):
-        pass
- 
-# LIBOR = {
-#     "1 week" : 0.08813,
-#     "1 month" : 0.10325,
-#     "3 months" : 0.18538,
-#     "6 months" : 0.19588,
-#     "12 months" : 0.27775
-# }
+        """
+        Generate zero rates from the IRS qutoes
 
-# Eurodollar = {
-#     "DEC 2020" : 99.765,
-#     "MAR 2021" : 99.8,
-#     "JUN 2021" : 99.8,
-#     "SEP 2021" : 99.77,
-#     "DEC 2021" : 99.715,
-#     "MAR 2022" : 99.715,
-# }
+        Args:
+            None
+        Returns:
+            OrderedDict:
+                key : datetime.date
+                value : zero rate
+        """
+        _dict = OrderedDict()
 
-# hw1 = SwapCurve("2020-11-04", LIBOR, Eurodollar)
-# pp.pprint(hw1.short_end_curve())
-# pp.pprint(hw1.middle_curve())
+        term_to_year = lambda term: int(term.replace('-Year', ''))
+        zero_date = self.present_date + relativedelta(years=term_to_year(next(iter(self.IRS))))
+        zero_rate = self.__initial_zero_rate(zero_date - relativedelta(months=6))
+        sum_discount_factor = exp(-0.5 * zero_rate/100)
 
+        IRS_rates_interpolated =  CubicSpline(
+            [term_to_year(term) * 365 for term in self.IRS], # 1-Year -> 365, 2-Year -> 2 * 365, ...
+            list(self.IRS.values()), # list of rates
+        )
 
+        list_terms =  np.linspace(1,31,60,endpoint=False)[:-1] # 1, 1.5, 2, 2.5, ..., 30
+        datetime_term_0 = self.present_date + relativedelta(years=list_terms[0])
+        for i, term in enumerate(list_terms):
+            
+            datetime_term = datetime_term_0 + relativedelta(months=int(i*6))
 
+            term_to_days = (datetime_term - datetime_term_0).days
+            swap_rate = IRS_rates_interpolated(term_to_days) / 100
+            discount_factor = (1 - 0.5 * swap_rate * sum_discount_factor)/ (1 + 0.5 * swap_rate)
+            zero_rate = 100 * -log(discount_factor) / term
+            sum_discount_factor += discount_factor
 
-a = request_quotes.USD_Swap_Rates()
-swap_terms = list(a.keys())
-swap_rates = list(a.values())
+            _dict[datetime_term] = zero_rate
 
-swap_terms2 = [int(year.replace('-Year', '')) * 365 for year in swap_terms]
+        return _dict
 
-cs_swap = CubicSpline(swap_terms2, swap_rates)
-plt.plot(swap_terms, swap_rates)
-# plt.plot(swap_terms, cs_swap(swap_terms2))
-plt.show()
-input()
+    def swap_curve(self):
+        """
+        Generate the entire swap curve using three curves above
 
+        Args:
+            None
+        Returns:
+            OrderedDict:
+                key : datetime.date
+                value : zero rate
+        """
 
+        # Only first two items will be taken from the short-end curve (1-week and 1-month)
+        short_end_curve = self.short_end_curve()
+        while len(short_end_curve) > 2:
+            short_end_curve.popitem()
 
+        # Only first three items will be taken from the middle curve (3-month to < 1-year)
+        middle_curve = self.middle_curve()
+        while len(middle_curve) > 3:
+            middle_curve.popitem()
 
+        return {**short_end_curve, **middle_curve, **self.long_end_curve()}
 
-today = datetime(2021,3,10).date()
+    def plot_swap_curve(self):
+        """
+        Plot the entire curve
 
-Mar03_2021 = SwapCurve(
-    '2021-03-10',
-    USD_LIBOR()[today],
-    Eurodollar_Futures()
-)
+        Args:
+            None
+        Returns:
+            None
+        """
+        swap_curve = { 
+            (date - self.present_date).days : rate 
+                for date, rate in self.swap_curve().items()
+        }
+        x = list(swap_curve)
+        y = CubicSpline(x, list(swap_curve.values()))
 
-pp.pprint(Mar03_2021.short_end_curve())
-print()
-pp.pprint(Mar03_2021.middle_curve())
+        datetime_x = [self.present_date + timedelta(i) for i in x]
+        plt.plot(datetime_x, y(x))
+        plt.title(f'{self.present_date} Swap Curved')
+        plt.show()
