@@ -19,7 +19,7 @@ This is to provide a swap curve with the latest market rates (LIBOR, Eurodollar 
     print(today.plot_curve) # Plot the curve of the day
 
 
-    or you can specify the rates and a date
+    or you can specify the rates and the date
 
     LIBOR = { 
         '1 week'   : 0.08513,
@@ -51,5 +51,5 @@ This is to provide a swap curve with the latest market rates (LIBOR, Eurodollar 
         '10-Year' : 1.62,
         '30-Year' : 2.06,
     }
-    
+
     rates_210315 = SwapCurve("2021-03-15", LIBOR, Eurodollar, IRS)
