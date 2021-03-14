@@ -13,13 +13,13 @@ This is to provide a swap curve with the latest market rates (LIBOR, Eurodollar 
 
 	
 ### Swap Curve
-
+    ```python
     today = SwapCurve()     # Using the latest market rates by default
     print(today.curve())    # Return a swap curve as dict
     print(today.plot_curve) # Plot the curve of the day
 
 
-    or you can specify the rates and the date
+    # or you can specify the rates and the date
 
     LIBOR = { 
         '1 week'   : 0.08513,
@@ -53,3 +53,4 @@ This is to provide a swap curve with the latest market rates (LIBOR, Eurodollar 
     }
 
     rates_210315 = SwapCurve("2021-03-15", LIBOR, Eurodollar, IRS)
+    '''
