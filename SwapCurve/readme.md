@@ -15,8 +15,8 @@ print(request_quotes.USD_Swap_Rates())
 	
 ### Zero Curve
 ```python
-import zero_curve
-today = zero_curve.Zero_Curve()     # Using the latest market rates by default
+from zero_curve import ZeroCurve
+today = Zero_Curve()     # Using the latest market rates by default
 print(today.curve())    # Return a swap curve as dict
 print(today.plot_curve) # Plot the curve of the day
 
@@ -54,5 +54,5 @@ IRS = {
 '30-Year' : 2.06,
 }
 
-rates_210315 = SwapCurve("2021-03-15", LIBOR, Eurodollar, IRS)
+rates_210315 = ZeroCurve("2021-03-15", LIBOR, Eurodollar, IRS)
 ```
