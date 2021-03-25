@@ -1,4 +1,4 @@
-# Swap Curve
+# Zero Curve
 # Overview
 
 This is to provide a swap curve with the latest market rates (LIBOR, Eurodollar Futures, IRS) or the given rates by user. 
@@ -13,9 +13,10 @@ print(request_quotes.Eurodollar_Futures())
 print(request_quotes.USD_Swap_Rates())
 ```
 	
-### Swap Curve
+### Zero Curve
 ```python
-today = SwapCurve()     # Using the latest market rates by default
+import zero_curve
+today = zero_curve.Zero_Curve()     # Using the latest market rates by default
 print(today.curve())    # Return a swap curve as dict
 print(today.plot_curve) # Plot the curve of the day
 
