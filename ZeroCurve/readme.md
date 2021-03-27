@@ -7,6 +7,7 @@ This is to provide a swap curve with the latest market rates (LIBOR, Eurodollar 
 ### Get the recent quotes
 
 '''python
+
 import request_quotes
 print(request_quotes.USD_LIBOR())
 print(request_quotes.Eurodollar_Futures())
