@@ -16,7 +16,7 @@ print(request_quotes.USD_Swap_Rates())
 	
 ### Swap Curve
 
-'''python
+```python
 today = SwapCurve()     # Using the latest market rates by default
 print(today.curve())    # Return a swap curve as dict
 print(today.plot_curve) # Plot the curve of the day
@@ -56,4 +56,4 @@ IRS = {
 }
 
 rates_210315 = SwapCurve("2021-03-15", LIBOR, Eurodollar, IRS)
-'''
+```
