@@ -23,7 +23,7 @@ print(today.curve())    # Return a swap curve as dict
 print(today.plot_curve) # Plot the curve of the day
 
 
-or you can specify the rates and the date
+# or you can specify the rates and the date
 
 LIBOR = { 
 	'1 week'   : 0.08513,
